@@ -275,6 +275,10 @@ public struct ViewSettings
 
 `Priority` 枚举值：`Lowest(-2000)` / `Low(-1000)` / `Normal(0)` / `Middle(1000)` / `High(2000)` / `Highest(3000)`
 
+### AnimatorUIAnimation 
+
+实现了IUIAnimation接口基于 Animator 的 UI 过渡动画。
+
 ### 自定义动画
 
 实现 `IUIAnimation` 接口并挂载到 View 的 GameObject 上：
@@ -350,32 +354,6 @@ Initialize ──► Load ──► Open ──► Show ──► Shown
 | `BaseComponent<P>` | 带参数的子组件 |
 | `BaseViewComponent<V>` | 强类型 View 的子组件 |
 | `BaseViewComponent<V, P>` | 强类型 View + 参数 |
-
-## 扩展（ 可选）
-
-项目设配了不同的资源加载器和异步方案，须提前集成对应的包。 在**Edit → Project Settings → Player**中添加对应的宏以启用：
-
-### AnimatorUIAnimation 
-
-实现了IUIAnimation接口基于 Animator 的 UI 过渡动画。
-
-### YooAsset
-
-YooAsset 资源加载器。宏名称: `HUI_YOOASSET`
-
-### Addressbles
-
-Addressbles 资源加载器。宏名称: `HUI_ADDRESSBLES`
-
-### UniTask
-
-UniTask 适配器。宏名称: `HUI_UNITASK`
-
-```csharp
-var ui = UIKit.OpenUI<TestUI>();
-await ui.WaitShownAsync();   // 等待显示完成
-await ui.WaitCloseAsync();   // 等待关闭
-```
 
 ---
 
