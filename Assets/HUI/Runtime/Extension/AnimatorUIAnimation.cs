@@ -1,10 +1,9 @@
-namespace HUI.Extension
+namespace HUI
 {
     using System;
     using System.Collections;
     using System.Linq;
     using UnityEngine;
-    using HUI;
     using System.Collections.Generic;
 
 #if UNITY_EDITOR

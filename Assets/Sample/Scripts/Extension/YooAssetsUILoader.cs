@@ -1,4 +1,3 @@
-#if HUI_YOOASSET
 using System;
 using System.Collections.Generic;
 using HUI;
@@ -43,4 +42,3 @@ namespace HUI.Extension
     }
 
 }
-#endif
