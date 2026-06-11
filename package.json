@@ -14,9 +14,9 @@
   },
   "samples": [
     {
-      "displayName": "YooAssetDemo",
-      "description": "A demo of how to use HUI by connecting yooasset.",
-      "path": "Samples~/YooAssetDemo"
+      "displayName": "YooAssetExpand",
+      "description": "yooasset expand",
+      "path": "Samples~/YooAssetExpand"
     },
     {
       "displayName": "UniTaskExpand",
