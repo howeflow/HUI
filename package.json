@@ -1,17 +1,17 @@
 {
-    "name": "com.howe.hui",
-    "version": "1.0.0",
-    "displayName": "HUI",
-    "description": "A lightweight UI framework.",
-    "unity": "2022.3",
-    "keywords": [
-        "ui",
-        "framework"
-    ],
-    "license": "MIT",
-    "author": {
-        "name": "Howe"
-    },
+  "name": "com.howe.hui",
+  "version": "1.0.0",
+  "displayName": "HUI",
+  "description": "A lightweight UI framework.",
+  "unity": "2022.3",
+  "keywords": [
+    "ui",
+    "framework"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Howe"
+  },
   "samples": [
     {
       "displayName": "YooAssetDemo",
@@ -19,7 +19,7 @@
       "path": "Samples~/YooAssetDemo"
     },
     {
-      "displayName": "UniTaskAdapter",
+      "displayName": "UniTaskExpand",
       "description": "unitask expand.",
       "path": "Samples~/UniTaskAdater"
     }
