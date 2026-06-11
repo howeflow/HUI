@@ -359,13 +359,7 @@ Initialize ──► Load ──► Open ──► Show ──► Shown
 
 ## 安装
 
-#### git安装
-需要一个支持git包路径查询参数的Unity版本. 
-
 你可以通过PackageManager `Add package from git URL`，添加 `https://github.com/howeflow/HUI.git`
 
 或者在项目文件`Packages/manifest.json`，添加 `"com.howe.hui" : "https://github.com/howeflow/HUI.git"`。
 
-#### 手动安装
-1. 下载或克隆本仓库。
-2. 将 `Assets/HUI` 文件夹复制到你的 Unity 项目的 `Assets` 目录下。
