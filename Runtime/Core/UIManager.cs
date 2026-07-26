@@ -12,6 +12,7 @@ namespace HUI
         private Dictionary<string, string> paths;
         private Dictionary<string, BaseUI> uis;
         private HashSet<BaseUI> pendingDestroys;
+        private HashSet<BaseUI> pendingHides;
         private UIScheduler scheduler;
 
         public int Count => uis.Count;
@@ -30,6 +31,7 @@ namespace HUI
             paths = new Dictionary<string, string>();
             uis = new Dictionary<string, BaseUI>();
             pendingDestroys = new HashSet<BaseUI>();
+            pendingHides = new HashSet<BaseUI>();
 
 
             scheduler = root.AddComponent<UIScheduler>();
@@ -129,6 +131,12 @@ namespace HUI
             {
                 pendingDestroys.Remove(ui);
             }
+
+            if (!pendingHides.Add(ui))
+            {
+                return;
+            }
+
             InternalHideUI(ui);
         }
         public void CloseAllUI(Predicate<BaseUI> condition, bool destroy = true)
@@ -179,6 +187,22 @@ namespace HUI
                 return;
             }
 
+            pendingHides.Remove(ui);
+
+            if (ui.State == UIState.Close)
+            {
+                return;
+            }
+
+            if (ui.View == null)
+            {
+                pendingDestroys.Remove(ui);
+                uis.Remove(ui.Name);
+                SetState(ui, UIState.Close);
+                loader.Release(ui.Path);
+                return;
+            }
+
             if (ui.State == UIState.Hide)
             {
                 Debug.LogWarning($"[UI] {ui.Name} is inactive.");
@@ -217,12 +241,19 @@ namespace HUI
                 return;
 
             pendingDestroys.Remove(ui);
+            pendingHides.Remove(ui);
             uis.Remove(ui.Name);
 
             SetState(ui, UIState.Close);
 
+            var view = ui.View;
+            ui.View = null;
+
             loader.Release(ui.Path);
-            GameObject.Destroy(ui.View.gameObject);
+            if (view != null)
+            {
+                GameObject.Destroy(view.gameObject);
+            }
         }
 
         internal void SetState(BaseUI ui, UIState state)
