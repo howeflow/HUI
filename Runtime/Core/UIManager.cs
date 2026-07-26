@@ -11,8 +11,7 @@ namespace HUI
         private IUILoader loader;
         private Dictionary<string, string> paths;
         private Dictionary<string, BaseUI> uis;
-        private HashSet<BaseUI> pendingDestroys;
-        private HashSet<BaseUI> pendingHides;
+        private Dictionary<BaseUI, UIState> pendingStates;
         private UIScheduler scheduler;
 
         public int Count => uis.Count;
@@ -30,8 +29,7 @@ namespace HUI
 
             paths = new Dictionary<string, string>();
             uis = new Dictionary<string, BaseUI>();
-            pendingDestroys = new HashSet<BaseUI>();
-            pendingHides = new HashSet<BaseUI>();
+            pendingStates = new Dictionary<BaseUI, UIState>();
 
 
             scheduler = root.AddComponent<UIScheduler>();
@@ -123,16 +121,9 @@ namespace HUI
                 return;
             }
 
-            if (destroy)
-            {
-                pendingDestroys.Add(ui);
-            }
-            else
-            {
-                pendingDestroys.Remove(ui);
-            }
-
-            if (!pendingHides.Add(ui))
+            var shouldSchedule = !pendingStates.ContainsKey(ui);
+            pendingStates[ui] = destroy ? UIState.Close : UIState.Hidden;
+            if (!shouldSchedule)
             {
                 return;
             }
@@ -154,7 +145,8 @@ namespace HUI
 
         private void InternalShowUI(BaseUI ui)
         {
-            scheduler.Schedule(() => ShowUI(ui));
+            pendingStates.Remove(ui);
+            scheduler.Schedule(() => ExecuteShowUI(ui));
         }
         private void InternalHideUI(BaseUI ui)
         {
@@ -162,6 +154,11 @@ namespace HUI
         }
 
         internal void ShowUI(BaseUI ui)
+        {
+            pendingStates.Remove(ui);
+            ExecuteShowUI(ui);
+        }
+        private void ExecuteShowUI(BaseUI ui)
         {
             if (ui.State <= UIState.Load)
             {
@@ -174,29 +171,32 @@ namespace HUI
                 return;
             }
 
-            pendingDestroys.Remove(ui);
             Groups.AddToGroup(ui);
             SetState(ui, UIState.Show);
             scheduler.Show(ui.View, () => SetState(ui, UIState.Shown));
         }
         internal void HideUI(BaseUI ui)
         {
+            if (!pendingStates.TryGetValue(ui, out var targetState))
+            {
+                return;
+            }
+
             if (ui.State <= UIState.Load)
             {
                 ui.pending = HideUI;
                 return;
             }
 
-            pendingHides.Remove(ui);
-
             if (ui.State == UIState.Close)
             {
+                pendingStates.Remove(ui);
                 return;
             }
 
             if (ui.View == null)
             {
-                pendingDestroys.Remove(ui);
+                pendingStates.Remove(ui);
                 uis.Remove(ui.Name);
                 SetState(ui, UIState.Close);
                 loader.Release(ui.Path);
@@ -205,43 +205,50 @@ namespace HUI
 
             if (ui.State == UIState.Hide)
             {
-                Debug.LogWarning($"[UI] {ui.Name} is inactive.");
                 return;
             }
 
             if (ui.State == UIState.Hidden || ui.State == UIState.Open)
             {
-                if (!IsPendingDestroy(ui))
+                if (targetState == UIState.Close)
                 {
-                    Debug.LogWarning($"[UI] {ui.Name} is inactive.");
-                    return;
+                    TryDestroyUI(ui);
                 }
-
-                TryDestroyUI(ui);
+                else
+                {
+                    pendingStates.Remove(ui);
+                }
                 return;
             }
 
             SetState(ui, UIState.Hide);
             scheduler.Hide(ui.View, () => {
+                if (!pendingStates.ContainsKey(ui) || ui.State != UIState.Hide)
+                {
+                    return;
+                }
+
                 SetState(ui, UIState.Hidden);
                 Groups.RemoveFromGroup(ui);
                 Queue.NotifyHidden(ui);
 
                 TryDestroyUI(ui);
+                if (ui.State == UIState.Hidden)
+                {
+                    pendingStates.Remove(ui);
+                }
             });
         }
 
-        private bool IsPendingDestroy(BaseUI ui)
-        {
-            return pendingDestroys.Contains(ui);
-        }
         private void TryDestroyUI(BaseUI ui)
         {
-            if (!IsPendingDestroy(ui))
+            if (!pendingStates.TryGetValue(ui, out var targetState) ||
+                targetState != UIState.Close)
+            {
                 return;
+            }
 
-            pendingDestroys.Remove(ui);
-            pendingHides.Remove(ui);
+            pendingStates.Remove(ui);
             uis.Remove(ui.Name);
 
             SetState(ui, UIState.Close);
