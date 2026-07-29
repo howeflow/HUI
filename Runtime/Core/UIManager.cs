@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -11,7 +10,6 @@ namespace HUI
         private IUILoader loader;
         private Dictionary<string, string> paths;
         private Dictionary<string, BaseUI> uis;
-        private Dictionary<BaseUI, UIState> pendingStates;
         private UIScheduler scheduler;
 
         public int Count => uis.Count;
@@ -22,18 +20,17 @@ namespace HUI
         public Camera Camera { get; private set; }
         public UIEvent Events { get; private set; }
 
-        public UIManager(GameObject root, IUILoader loader, UISettings settings)
+        internal UIManager(GameObject root, IUILoader loader, UISettings settings)
         {
             this.loader = loader;
             this.Settings = settings;
 
             paths = new Dictionary<string, string>();
             uis = new Dictionary<string, BaseUI>();
-            pendingStates = new Dictionary<BaseUI, UIState>();
 
 
             scheduler = root.AddComponent<UIScheduler>();
-            scheduler.Init(settings);
+            scheduler.Init(this, settings);
 
             Groups = new UIGroupCollection(settings, root);
             Queue = new UIQueueManager(this);
@@ -64,52 +61,28 @@ namespace HUI
 
         public BaseUI OpenUI(string uiName, Type type)
         {
-            if (!uis.TryGetValue(uiName, out var ui))
-            {
-                ui = LoadUI(uiName, type);
-            }
-            InternalShowUI(ui);
+            var ui = LoadUI(uiName, type);
+            scheduler.Request(ui, UIIntent.Show);
             return ui;
         }
         public BaseUI OpenUI<P>(string uiName, Type type, P parameter)
         {
-            if (!uis.TryGetValue(uiName, out var ui))
-            {
-                ui = LoadUI(uiName, type, parameter);
-            }
-            else
-            {
-                SetParameter(ui, parameter);
-            }
-            InternalShowUI(ui);
+            var ui = LoadUI(uiName, type, parameter);
+            scheduler.Request(ui, UIIntent.Show);
             return ui;
         }
-        public BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0)
+        public BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0, bool first = false)
         {
             var command = new QueueCommand(uiName, type);
-            var ui = LoadUI(uiName, type);
-            Queue.Add(command, queueId);
+            var ui = Generate(uiName, type);
+            Queue.Add(command, queueId, first);
             return ui;
         }
-        public BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0)
+        public BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0, bool first = false)
         {
             var command = new QueueCommand<P>(uiName, type, parameter);
-            var ui = LoadUI(uiName, type, parameter);
-            Queue.Add(command, queueId);
-            return ui;
-        }
-        public BaseUI InsertQueueUI(int index, string uiName, Type type, int queueId = 0)
-        {
-            var command = new QueueCommand(uiName, type);
-            var ui = LoadUI(uiName, type);
-            Queue.Insert(command, index, queueId);
-            return ui;
-        }
-        public BaseUI InsertQueueUI<P>(int index, string uiName, Type type, P parameter, int queueId = 0)
-        {
-            var command = new QueueCommand<P>(uiName, type, parameter);
-            var ui = LoadUI(uiName, type, parameter);
-            Queue.Insert(command, index, queueId);
+            var ui = Generate(uiName, type);
+            Queue.Add(command, queueId, first);
             return ui;
         }
 
@@ -121,14 +94,7 @@ namespace HUI
                 return;
             }
 
-            var shouldSchedule = !pendingStates.ContainsKey(ui);
-            pendingStates[ui] = destroy ? UIState.Close : UIState.Hidden;
-            if (!shouldSchedule)
-            {
-                return;
-            }
-
-            InternalHideUI(ui);
+            scheduler.Request(ui, destroy ? UIIntent.Close : UIIntent.Hide);
         }
         public void CloseAllUI(Predicate<BaseUI> condition, bool destroy = true)
         {
@@ -143,124 +109,37 @@ namespace HUI
             }
         }
 
-        private void InternalShowUI(BaseUI ui)
+        internal BaseUI OpenUIFromQueue(string uiName, Type type, long entryId)
         {
-            pendingStates.Remove(ui);
-            scheduler.Schedule(() => ExecuteShowUI(ui));
-        }
-        private void InternalHideUI(BaseUI ui)
-        {
-            scheduler.Schedule(() => HideUI(ui));
+            var ui = Generate(uiName, type);
+            scheduler.RequestQueueShow(ui, entryId);
+            LoadView(ui);
+            return ui;
         }
 
-        internal void ShowUI(BaseUI ui)
+        internal BaseUI OpenUIFromQueue<P>(string uiName, Type type, P parameter, long entryId)
         {
-            pendingStates.Remove(ui);
-            ExecuteShowUI(ui);
-        }
-        private void ExecuteShowUI(BaseUI ui)
-        {
-            if (ui.State <= UIState.Load)
-            {
-                ui.pending = ShowUI;
-                return;
-            }
-            if (ui.State == UIState.Show || ui.State == UIState.Shown || ui.State == UIState.Close)
-            {
-                Debug.LogWarning($"[UI] {ui.Name} cannot show, current state is {ui.State}.");
-                return;
-            }
-
-            Groups.AddToGroup(ui);
-            SetState(ui, UIState.Show);
-            scheduler.Show(ui.View, () => SetState(ui, UIState.Shown));
-        }
-        internal void HideUI(BaseUI ui)
-        {
-            if (!pendingStates.TryGetValue(ui, out var targetState))
-            {
-                return;
-            }
-
-            if (ui.State <= UIState.Load)
-            {
-                ui.pending = HideUI;
-                return;
-            }
-
-            if (ui.State == UIState.Close)
-            {
-                pendingStates.Remove(ui);
-                return;
-            }
-
-            if (ui.View == null)
-            {
-                pendingStates.Remove(ui);
-                uis.Remove(ui.Name);
-                SetState(ui, UIState.Close);
-                loader.Release(ui.Path);
-                return;
-            }
-
-            if (ui.State == UIState.Hide)
-            {
-                return;
-            }
-
-            if (ui.State == UIState.Hidden || ui.State == UIState.Open)
-            {
-                if (targetState == UIState.Close)
-                {
-                    TryDestroyUI(ui);
-                }
-                else
-                {
-                    pendingStates.Remove(ui);
-                }
-                return;
-            }
-
-            SetState(ui, UIState.Hide);
-            scheduler.Hide(ui.View, () => {
-                if (!pendingStates.ContainsKey(ui) || ui.State != UIState.Hide)
-                {
-                    return;
-                }
-
-                SetState(ui, UIState.Hidden);
-                Groups.RemoveFromGroup(ui);
-                Queue.NotifyHidden(ui);
-
-                TryDestroyUI(ui);
-                if (ui.State == UIState.Hidden)
-                {
-                    pendingStates.Remove(ui);
-                }
-            });
+            var ui = Generate(uiName, type);
+            SetParameter(ui, parameter);
+            scheduler.RequestQueueShow(ui, entryId);
+            LoadView(ui);
+            return ui;
         }
 
-        private void TryDestroyUI(BaseUI ui)
+        internal void DestroyUI(BaseUI ui)
         {
-            if (!pendingStates.TryGetValue(ui, out var targetState) ||
-                targetState != UIState.Close)
-            {
-                return;
-            }
-
-            pendingStates.Remove(ui);
             uis.Remove(ui.Name);
 
-            SetState(ui, UIState.Close);
-
             var view = ui.View;
-            ui.View = null;
-
-            loader.Release(ui.Path);
-            if (view != null)
+            if (ui.Group != null)
             {
-                GameObject.Destroy(view.gameObject);
+                Groups.RemoveFromGroup(ui);
             }
+
+            SetState(ui, UIState.Close);
+            ui.View = null;
+            loader.Release(ui.Path);
+            GameObject.Destroy(view.gameObject);
         }
 
         internal void SetState(BaseUI ui, UIState state)
@@ -318,18 +197,29 @@ namespace HUI
         }
         private void OnLoadComplete(GameObject prefab, BaseUI ui)
         {
-            Debug.Assert(prefab != null, $"[UI] Prefab load fail. {ui.Path}");
-
-            var hasView = prefab.TryGetComponent<BaseView>(out var view);
-            Debug.Assert(hasView, $"[UI] BaseView is not found. {ui.Path}");
+            if (prefab == null)
+            {
+                HandleLoadFailure(ui, new InvalidOperationException($"[UI] Prefab load fail. {ui.Path}"));
+                return;
+            }
+            if (!prefab.TryGetComponent<BaseView>(out var view))
+            {
+                HandleLoadFailure(ui, new InvalidOperationException($"[UI] BaseView is not found. {ui.Path}"));
+                return;
+            }
 
             ui.View = GameObject.Instantiate(view, Groups.Template.transform, false);
             ui.View.name = ui.Name;
-
             SetState(ui, UIState.Open);
+            scheduler.NotifyReady(ui);
+        }
 
-            ui.pending?.Invoke(ui);
-            ui.pending = null;
+        private void HandleLoadFailure(BaseUI ui, Exception exception)
+        {
+            Debug.LogException(exception);
+            uis.Remove(ui.Name);
+            loader.Release(ui.Path);
+            scheduler.NotifyLoadFailed(ui);
         }
     }
 }

@@ -1,67 +1,65 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace HUI
 {
-    public interface IQueueCommand
+    internal interface IQueueCommand
     {
         string Name { get; }
-        void Execute(UIManager manager);
+        BaseUI Execute(UIManager manager, long entryId);
     }
-    public struct QueueCommand : IQueueCommand
+
+    internal struct QueueCommand : IQueueCommand
     {
-        public string name;
-        public Type type;
+        private readonly string name;
+        private readonly Type type;
 
         public string Name => name;
 
-        public QueueCommand(string name, Type type)
+        internal QueueCommand(string name, Type type)
         {
             this.name = name;
             this.type = type;
         }
 
-        public void Execute(UIManager manager)
+        public BaseUI Execute(UIManager manager, long entryId)
         {
-            var ui = manager.GetUI(name);
-            if (ui == null || ui.State < UIState.Open)
-            {
-                manager.OpenUI(name, type);
-            }
-            else
-            {
-                manager.ShowUI(ui);
-            }
+            return manager.OpenUIFromQueue(name, type, entryId);
         }
     }
-    public struct QueueCommand<T> : IQueueCommand
+
+    internal struct QueueCommand<T> : IQueueCommand
     {
-        public string name;
-        public Type type;
-        public T parameter;
+        private readonly string name;
+        private readonly Type type;
+        private readonly T parameter;
 
         public string Name => name;
 
-        public QueueCommand(string name, Type type, T parameter)
+        internal QueueCommand(string name, Type type, T parameter)
         {
             this.name = name;
             this.type = type;
             this.parameter = parameter;
         }
 
-        public void Execute(UIManager manager)
+        public BaseUI Execute(UIManager manager, long entryId)
         {
-            var ui = manager.GetUI(name);
-            if (ui == null || ui.State < UIState.Open)
-            {
-                manager.OpenUI(name, type, parameter);
-            }
-            else
-            {
-                manager.SetParameter(ui, parameter);
-                manager.ShowUI(ui);
-            }
+            return manager.OpenUIFromQueue(name, type, parameter, entryId);
+        }
+    }
+
+    public class UIQueueEntry
+    {
+        internal IQueueCommand Command { get; }
+        internal long Id { get; }
+        public BaseUI UI { get; internal set; }
+        public string Name => Command.Name;
+
+        internal UIQueueEntry(long id, IQueueCommand command)
+        {
+            Id = id;
+            Command = command;
         }
     }
 
@@ -69,13 +67,17 @@ namespace HUI
     {
         public int Id { get; internal set; }
         public bool IsPaused { get; internal set; }
-        public int Count => List.Count;
-        public LinkedList<IQueueCommand> List { get; internal set; }
-        public LinkedListNode<IQueueCommand> Current { get; internal set; }
-        public UIQueue(int id)
+        public int Count => pending.Count + (Current == null ? 0 : 1);
+        public IReadOnlyCollection<UIQueueEntry> Pending => pending;
+        public UIQueueEntry Current { get; internal set; }
+
+        private LinkedList<UIQueueEntry> pending;
+        internal LinkedList<UIQueueEntry> PendingList => pending;
+
+        internal UIQueue(int id)
         {
             this.Id = id;
-            List = new LinkedList<IQueueCommand>();
+            pending = new LinkedList<UIQueueEntry>();
         }
     }
 
@@ -83,30 +85,39 @@ namespace HUI
     {
         private UIManager manager;
         private Dictionary<int, UIQueue> queues;
+        private Dictionary<long, UIQueue> entryQueues;
+        private Dictionary<string, UIQueueEntry> activeNames;
+        private long entryIdCounter;
+
         public IReadOnlyCollection<UIQueue> Queues => queues.Values;
 
-        public UIQueueManager(UIManager manager)
+        internal UIQueueManager(UIManager manager)
         {
             this.manager = manager;
             queues = new Dictionary<int, UIQueue>();
+            entryQueues = new Dictionary<long, UIQueue>();
+            activeNames = new Dictionary<string, UIQueueEntry>();
         }
 
-        internal void NotifyHidden(BaseUI ui)
+        internal void NotifyCompleted(BaseUI ui, long entryId)
         {
-            foreach (var queue in queues.Values)
+            if (!entryQueues.TryGetValue(entryId, out var queue))
             {
-                if (queue.Current == null)
-                    continue;
-
-                var command = queue.Current.Value;
-                if (command.Name != ui.Name)
-                    continue;
-
-                queue.List.Remove(queue.Current);
-                queue.Current = null;
-
-                Execute(queue);
+                return;
             }
+
+            var entry = queue.Current;
+            if (entry.UI == null)
+            {
+                entry.UI = ui;
+            }
+
+            entryQueues.Remove(entryId);
+            activeNames.Remove(entry.Name);
+
+            queue.Current = null;
+            Execute(queue);
+            ExecuteWaitingQueues();
         }
 
         private void Execute(UIQueue queue)
@@ -117,13 +128,27 @@ namespace HUI
             if (queue.Current != null)
                 return;
 
-            if (queue.List.First == null)
+            if (queue.PendingList.First == null)
                 return;
 
-            queue.Current = queue.List.First;
-            var command = queue.Current.Value;
+            var entry = queue.PendingList.First.Value;
+            if (activeNames.ContainsKey(entry.Name))
+                return;
 
-            command.Execute(manager);
+            queue.PendingList.RemoveFirst();
+            queue.Current = entry;
+            activeNames[entry.Name] = entry;
+            entryQueues[entry.Id] = queue;
+
+            entry.UI = entry.Command.Execute(manager, entry.Id);
+        }
+
+        private void ExecuteWaitingQueues()
+        {
+            foreach (var queue in queues.Values)
+            {
+                Execute(queue);
+            }
         }
 
         private UIQueue GetOrCreate(int queueId)
@@ -135,29 +160,21 @@ namespace HUI
             }
             return queue;
         }
-        public void Add(IQueueCommand command, int queueId = 0)
+
+        private UIQueueEntry CreateEntry(IQueueCommand command)
         {
-            var queue = GetOrCreate(queueId);
-
-            queue.List.AddLast(command);
-
-            Execute(queue);
+            return new UIQueueEntry(++entryIdCounter, command);
         }
-        public void Insert(IQueueCommand command, int index, int queueId = 0)
+
+        internal void Add(IQueueCommand command, int queueId = 0, bool first = false)
         {
             var queue = GetOrCreate(queueId);
+            var entry = CreateEntry(command);
 
-            if (index < 0 || index > queue.List.Count)
-                throw new ArgumentOutOfRangeException(nameof(index));
-
-            var node = queue.List.First;
-            for (int i = 0; i < index && node != null; i++)
-                node = node.Next;
-
-            if (node == null)
-                queue.List.AddLast(command);
+            if (first)
+                queue.PendingList.AddFirst(entry);
             else
-                queue.List.AddBefore(node, command);
+                queue.PendingList.AddLast(entry);
 
             Execute(queue);
         }
@@ -182,20 +199,16 @@ namespace HUI
         {
             if (queues.TryGetValue(queueId, out var queue))
             {
-                queue.List.Clear();
-                queue.Current = null;
+                queue.PendingList.Clear();
             }
-            queues.Remove(queueId);
         }
 
         public void ClearAll()
         {
             foreach (var queue in queues.Values)
             {
-                queue.List.Clear();
-                queue.Current = null;
+                queue.PendingList.Clear();
             }
-            queues.Clear();
         }
     }
 }

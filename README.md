@@ -140,8 +140,8 @@ UIKit.OpenQueueUI<TipC>();
 // 指定队列 ID
 UIKit.OpenQueueUI<TipA>(queueId: 1);
 
-// 插入到队列指定位置
-UIKit.InsertQueueUI<TipD>(index: 0, queueId: 0);
+// 添加到队首
+UIKit.OpenQueueUI<TipD>(queueId: 0, first: true);
 
 // 带参数的队列 UI
 UIKit.OpenQueueUI<TipPanel, string>("内容", queueId: 0);

@@ -171,18 +171,20 @@ namespace HUI.Editor
 
                     box.Add(CreateSpacer(2));
 
-                    foreach (var command in queue.List)
+                    var entries = queue.Pending.AsEnumerable();
+                    if (queue.Current != null) entries = Enumerable.Repeat(queue.Current, 1).Concat(entries);
+                    foreach (var entry in entries)
                     {
-                        var ui = UIKit.GetUI(command.Name);
+                        var ui = entry.UI ?? UIKit.GetUI(entry.Name);
 
                         var row = new VisualElement();
                         row.style.justifyContent= Justify.SpaceBetween;
                         row.style.flexDirection = FlexDirection.Row;
                         box.Add(row);
 
-                        var nameBtn = new Button(() => EditorGUIUtility.PingObject(ui.View))
+                        var nameBtn = new Button(() => EditorGUIUtility.PingObject(ui?.View))
                         {
-                            text = command.Name
+                            text = entry.Name
                         };
                         nameBtn.style.flexGrow = 1;
                         nameBtn.style.flexShrink = 1;
@@ -192,14 +194,14 @@ namespace HUI.Editor
                         nameBtn.style.borderLeftWidth = nameBtn.style.borderRightWidth = 0;
                         row.Add(nameBtn);
 
-                        if (queue.Current != null && queue.Current.Value == command)
+                        if (queue.Current == entry)
                         {
                             var currentLabel = new Label("Current");
                             currentLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
                             currentLabel.style.color = Color.gray;
                             currentLabel.style.width = 80;
 
-                            var closeBtn = new Button(() => ui.Close()) { text = "Close" };
+                            var closeBtn = new Button(() => ui?.Close()) { text = "Close" };
                             closeBtn.style.width = 60;
 
                             row.Add(currentLabel);

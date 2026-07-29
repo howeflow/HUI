@@ -124,56 +124,30 @@ namespace HUI
             return Manager.OpenUI(uiName, type, parameter);
         }
 
-        public static T OpenQueueUI<T>(int queueId = 0) where T : BaseUI
+        public static T OpenQueueUI<T>(int queueId = 0, bool first = false) where T : BaseUI
         {
-            return OpenQueueUI(typeof(T), queueId) as T;
+            return OpenQueueUI(typeof(T), queueId, first) as T;
         }
-        public static BaseUI OpenQueueUI(Type type, int queueId = 0)
+        public static BaseUI OpenQueueUI(Type type, int queueId = 0, bool first = false)
         {
-            return OpenQueueUI(type.Name, type, queueId);
+            return OpenQueueUI(type.Name, type, queueId, first);
         }
-        public static BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0)
+        public static BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0, bool first = false)
         {
-            return Manager.OpenQueueUI(uiName,type,queueId);
-        }
-
-        public static T OpenQueueUI<T, P>(P parameter, int queueId = 0) where T : BaseUI<P>
-        {
-            return OpenQueueUI(typeof(T), parameter, queueId) as T;
-        }
-        public static BaseUI OpenQueueUI<P>(Type type, P parameter, int queueId = 0)
-        {
-            return OpenQueueUI(type.Name, type, parameter, queueId);
-        }
-        public static BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0)
-        {
-            return Manager.OpenQueueUI(uiName,type,parameter,queueId);
+            return Manager.OpenQueueUI(uiName,type,queueId,first);
         }
 
-        public static T InsertQueueUI<T>(int index, int queueId = 0) where T : BaseUI
+        public static T OpenQueueUI<T, P>(P parameter, int queueId = 0, bool first = false) where T : BaseUI<P>
         {
-            return InsertQueueUI(index, typeof(T), queueId) as T;
+            return OpenQueueUI(typeof(T), parameter, queueId, first) as T;
         }
-        public static BaseUI InsertQueueUI(int index, Type type, int queueId = 0)
+        public static BaseUI OpenQueueUI<P>(Type type, P parameter, int queueId = 0, bool first = false)
         {
-            return InsertQueueUI(index, type.Name, type, queueId);
+            return OpenQueueUI(type.Name, type, parameter, queueId, first);
         }
-        public static BaseUI InsertQueueUI(int index, string uiName, Type type, int queueId = 0)
+        public static BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0, bool first = false)
         {
-            return Manager.InsertQueueUI(index, uiName, type, queueId);
-        }
-
-        public static T InsertQueueUI<T, P>(int index, P parameter, int queueId = 0) where T : BaseUI<P>
-        {
-            return InsertQueueUI(index, typeof(T), parameter, queueId) as T;
-        }
-        public static BaseUI InsertQueueUI<P>(int index, Type type, P parameter, int queueId = 0)
-        {
-            return InsertQueueUI(index, type.Name, type, parameter, queueId);
-        }
-        public static BaseUI InsertQueueUI<P>(int index, string uiName, Type type, P parameter, int queueId = 0)
-        {
-            return Manager.InsertQueueUI(index, uiName, type, parameter, queueId);
+            return Manager.OpenQueueUI(uiName,type,parameter,queueId,first);
         }
 
         public static void CloseUI<T>(bool destroy = true) where T : BaseUI

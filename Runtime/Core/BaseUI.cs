@@ -23,7 +23,6 @@ namespace HUI
 
     public abstract class BaseUI
     {
-        internal UICallback<BaseUI> pending;
         public string Name { get; internal set; }
         public string Path { get; internal set; }
         public UIState State { get; private set; }
