@@ -80,83 +80,65 @@ namespace HUI
 
         public static T LoadUI<T>() where T : BaseUI
         {
-            var type = typeof(T);
-            return LoadUI(type.Name, type) as T;
+            return LoadUI(UIKey.Create<T>()) as T;
         }
-        public static BaseUI LoadUI(string uiName, Type type)
+        public static BaseUI LoadUI(UIKey key)
         {
-            return Manager.LoadUI(uiName, type);
+            return Manager.LoadUI(key);
         }
 
-        public static T LoadUI<T,P>(P parameter) where T : BaseUI
+        public static T LoadUI<T,P>(P parameter) where T : BaseUI<P>
         {
-            var type = typeof(T);
-            return LoadUI(type.Name, type, parameter) as T;
+            return LoadUI(UIKey.Create<T>(), parameter) as T;
         }
-        public static BaseUI LoadUI<P>(string uiName, Type type, P parameter)
+        public static BaseUI LoadUI<P>(UIKey key, P parameter)
         {
-            return Manager.LoadUI(uiName, type, parameter);
+            return Manager.LoadUI(key, parameter);
         }
 
         public static T OpenUI<T>() where T : BaseUI
         {
-            return OpenUI(typeof(T)) as T;
+            return OpenUI(UIKey.Create<T>()) as T;
         }
-        public static BaseUI OpenUI(Type type)
+        public static BaseUI OpenUI(UIKey key)
         {
-            return OpenUI(type.Name, type);
-        }
-        public static BaseUI OpenUI(string uiName, Type type)
-        {
-            return Manager.OpenUI(uiName,type);
+            return Manager.OpenUI(key);
         }
 
         public static T OpenUI<T,P>(P parameter) where T : BaseUI<P>
         {
-            return OpenUI(typeof(T),parameter) as T;
+            return OpenUI(UIKey.Create<T>(), parameter) as T;
         }
-        public static BaseUI OpenUI<P>(Type type, P parameter)
+        public static BaseUI OpenUI<P>(UIKey key, P parameter)
         {
-            return OpenUI(type.Name, type,parameter);
-        }
-        public static BaseUI OpenUI<P>(string uiName, Type type,P parameter)
-        {
-            return Manager.OpenUI(uiName, type, parameter);
+            return Manager.OpenUI(key, parameter);
         }
 
         public static T OpenQueueUI<T>(int queueId = 0, bool first = false) where T : BaseUI
         {
-            return OpenQueueUI(typeof(T), queueId, first) as T;
+            return OpenQueueUI(UIKey.Create<T>(), queueId, first) as T;
         }
-        public static BaseUI OpenQueueUI(Type type, int queueId = 0, bool first = false)
+        public static BaseUI OpenQueueUI(UIKey key, int queueId = 0, bool first = false)
         {
-            return OpenQueueUI(type.Name, type, queueId, first);
-        }
-        public static BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0, bool first = false)
-        {
-            return Manager.OpenQueueUI(uiName,type,queueId,first);
+            return Manager.OpenQueueUI(key, queueId, first);
         }
 
         public static T OpenQueueUI<T, P>(P parameter, int queueId = 0, bool first = false) where T : BaseUI<P>
         {
-            return OpenQueueUI(typeof(T), parameter, queueId, first) as T;
+            return OpenQueueUI(UIKey.Create<T>(), parameter, queueId, first) as T;
         }
-        public static BaseUI OpenQueueUI<P>(Type type, P parameter, int queueId = 0, bool first = false)
+        public static BaseUI OpenQueueUI<P>(UIKey key, P parameter, int queueId = 0, bool first = false)
         {
-            return OpenQueueUI(type.Name, type, parameter, queueId, first);
-        }
-        public static BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0, bool first = false)
-        {
-            return Manager.OpenQueueUI(uiName,type,parameter,queueId,first);
+            return Manager.OpenQueueUI(key, parameter, queueId, first);
         }
 
         public static void CloseUI<T>(bool destroy = true) where T : BaseUI
         {
-            CloseUI(typeof(T), destroy);
+            CloseUI(UIKey.Create<T>(), destroy);
         }
-        public static void CloseUI(Type type, bool destroy = true)
+        public static void CloseUI(UIKey key, bool destroy = true)
         {
-            CloseUI(type.Name, destroy);
+            CloseUI(key.Name, destroy);
         }
         public static void CloseUI(string uiName, bool destroy = true)
         {

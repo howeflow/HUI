@@ -8,7 +8,7 @@ namespace HUI
     public class UIManager
     {
         private IUILoader loader;
-        private Dictionary<string, string> paths;
+        private Dictionary<UIKey, string> paths;
         private Dictionary<string, BaseUI> uis;
         private UIScheduler scheduler;
 
@@ -25,7 +25,7 @@ namespace HUI
             this.loader = loader;
             this.Settings = settings;
 
-            paths = new Dictionary<string, string>();
+            paths = new Dictionary<UIKey, string>();
             uis = new Dictionary<string, BaseUI>();
 
 
@@ -44,44 +44,48 @@ namespace HUI
         {
             return uis.GetValueOrDefault(uiName);
         }
-
-        public BaseUI LoadUI(string uiName, Type type)
+        public BaseUI GetUI(UIKey key)
         {
-            var ui = Generate(uiName, type);
+            return GetUI(key.Name);
+        }
+
+        public BaseUI LoadUI(UIKey key)
+        {
+            var ui = Generate(key);
             LoadView(ui);
             return ui;
         }
-        public BaseUI LoadUI<P>(string uiName, Type type, P parameter)
+        public BaseUI LoadUI<P>(UIKey key, P parameter)
         {
-            var ui = Generate(uiName, type);
+            var ui = Generate(key);
             SetParameter(ui, parameter);
             LoadView(ui);
             return ui;
         }
 
-        public BaseUI OpenUI(string uiName, Type type)
+        public BaseUI OpenUI(UIKey key)
         {
-            var ui = LoadUI(uiName, type);
+            var ui = LoadUI(key);
             scheduler.Request(ui, UIIntent.Show);
             return ui;
         }
-        public BaseUI OpenUI<P>(string uiName, Type type, P parameter)
+        public BaseUI OpenUI<P>(UIKey key, P parameter)
         {
-            var ui = LoadUI(uiName, type, parameter);
+            var ui = LoadUI(key, parameter);
             scheduler.Request(ui, UIIntent.Show);
             return ui;
         }
-        public BaseUI OpenQueueUI(string uiName, Type type, int queueId = 0, bool first = false)
+        public BaseUI OpenQueueUI(UIKey key, int queueId = 0, bool first = false)
         {
-            var command = new QueueCommand(uiName, type);
-            var ui = Generate(uiName, type);
+            var command = new QueueCommand(key);
+            var ui = Generate(key);
             Queue.Add(command, queueId, first);
             return ui;
         }
-        public BaseUI OpenQueueUI<P>(string uiName, Type type, P parameter, int queueId = 0, bool first = false)
+        public BaseUI OpenQueueUI<P>(UIKey key, P parameter, int queueId = 0, bool first = false)
         {
-            var command = new QueueCommand<P>(uiName, type, parameter);
-            var ui = Generate(uiName, type);
+            var command = new QueueCommand<P>(key, parameter);
+            var ui = Generate(key);
             Queue.Add(command, queueId, first);
             return ui;
         }
@@ -109,17 +113,17 @@ namespace HUI
             }
         }
 
-        internal BaseUI OpenUIFromQueue(string uiName, Type type, long entryId)
+        internal BaseUI OpenUIFromQueue(UIKey key, long entryId)
         {
-            var ui = Generate(uiName, type);
+            var ui = Generate(key);
             scheduler.RequestQueueShow(ui, entryId);
             LoadView(ui);
             return ui;
         }
 
-        internal BaseUI OpenUIFromQueue<P>(string uiName, Type type, P parameter, long entryId)
+        internal BaseUI OpenUIFromQueue<P>(UIKey key, P parameter, long entryId)
         {
-            var ui = Generate(uiName, type);
+            var ui = Generate(key);
             SetParameter(ui, parameter);
             scheduler.RequestQueueShow(ui, entryId);
             LoadView(ui);
@@ -155,34 +159,32 @@ namespace HUI
             }
         }
 
-        private string GetPath(string uiName, Type type)
+        private string GetPath(UIKey key)
         {
-            var key = uiName + type.Name;
-
             if (paths.TryGetValue(key, out var path))
             {
                 return path;
             }
 
-            var attribute = type.GetCustomAttribute<UIPathAttribute>();
-            var typeName = type.Name;
+            var attribute = key.Type.GetCustomAttribute<UIPathAttribute>();
+            var typeName = key.Type.Name;
 
-            path = uiName != typeName ? uiName : attribute?.Path ?? uiName;
+            path = key.Name != typeName ? key.Name : attribute?.Path ?? key.Name;
 
             paths[key] = path;
             return path;
         }
-        private BaseUI Generate(string uiName, Type type)
+        private BaseUI Generate(UIKey key)
         {
-            Debug.Assert(typeof(BaseUI).IsAssignableFrom(type), $"[UI] {type} must inherit from BaseUI.");
+            Debug.Assert(typeof(BaseUI).IsAssignableFrom(key.Type), $"[UI] {key.Type} must inherit from BaseUI.");
 
-            if (uis.TryGetValue(uiName, out var ui))
+            if (uis.TryGetValue(key.Name, out var ui))
                 return ui;
 
-            ui = Activator.CreateInstance(type) as BaseUI;
-            ui.Name = uiName;
-            ui.Path = GetPath(uiName, type);
-            uis[uiName] = ui;
+            ui = Activator.CreateInstance(key.Type) as BaseUI;
+            ui.Name = key.Name;
+            ui.Path = GetPath(key);
+            uis[key.Name] = ui;
             return ui;
         }
 

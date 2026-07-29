@@ -9,6 +9,43 @@ namespace HUI
         public UIPathAttribute(string path) => Path = path;
     }
 
+    public readonly struct UIKey : IEquatable<UIKey>
+    {
+        public string Name { get; }
+        public Type Type { get; }
+
+        public UIKey(string name, Type type)
+        {
+            Name = name;
+            Type = type;
+        }
+
+        public static UIKey Create(Type type, string name = null)
+        {
+            return new UIKey(name ?? type.Name, type);
+        }
+
+        public static UIKey Create<T>(string name = null) where T : BaseUI
+        {
+            return Create(typeof(T), name);
+        }
+
+        public bool Equals(UIKey other)
+        {
+            return Name == other.Name && Type == other.Type;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is UIKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Name, Type);
+        }
+    }
+
     public enum UIState
     {
         None,

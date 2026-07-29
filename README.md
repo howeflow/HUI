@@ -101,6 +101,10 @@ UIKit.OpenUI<TestUI>();
 //打开携带参数的UI
 UIKit.OpenUI<MyParamUI, string>("Hello World");
 
+// 使用自定义名称
+var customTip = UIKey.Create<TipUI>("SpecialTip");
+UIKit.OpenUI(customTip);
+
 // 关闭并销毁
 UIKit.CloseUI<TestUI>();
 

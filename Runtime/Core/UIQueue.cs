@@ -1,51 +1,46 @@
-using System;
 using System.Collections.Generic;
 
 namespace HUI
 {
     internal interface IQueueCommand
     {
-        string Name { get; }
+        UIKey Key { get; }
         BaseUI Execute(UIManager manager, long entryId);
     }
 
     internal struct QueueCommand : IQueueCommand
     {
-        private readonly string name;
-        private readonly Type type;
+        private readonly UIKey key;
 
-        public string Name => name;
+        public UIKey Key => key;
 
-        internal QueueCommand(string name, Type type)
+        internal QueueCommand(UIKey key)
         {
-            this.name = name;
-            this.type = type;
+            this.key = key;
         }
 
         public BaseUI Execute(UIManager manager, long entryId)
         {
-            return manager.OpenUIFromQueue(name, type, entryId);
+            return manager.OpenUIFromQueue(key, entryId);
         }
     }
 
     internal struct QueueCommand<T> : IQueueCommand
     {
-        private readonly string name;
-        private readonly Type type;
+        private readonly UIKey key;
         private readonly T parameter;
 
-        public string Name => name;
+        public UIKey Key => key;
 
-        internal QueueCommand(string name, Type type, T parameter)
+        internal QueueCommand(UIKey key, T parameter)
         {
-            this.name = name;
-            this.type = type;
+            this.key = key;
             this.parameter = parameter;
         }
 
         public BaseUI Execute(UIManager manager, long entryId)
         {
-            return manager.OpenUIFromQueue(name, type, parameter, entryId);
+            return manager.OpenUIFromQueue(key, parameter, entryId);
         }
     }
 
@@ -54,7 +49,8 @@ namespace HUI
         internal IQueueCommand Command { get; }
         internal long Id { get; }
         public BaseUI UI { get; internal set; }
-        public string Name => Command.Name;
+        public UIKey Key => Command.Key;
+        public string Name => Key.Name;
 
         internal UIQueueEntry(long id, IQueueCommand command)
         {
